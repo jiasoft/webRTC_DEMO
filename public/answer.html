@@ -1,0 +1,183 @@
+<!--
+> qiutujia     - 
+> Documentation - answer
+-->
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title></title>
+
+       
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+        <meta name="author" content="qiutujia">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    </head>
+
+    <body>
+        <script>
+
+            let serverConfig = {"iceServers":[{"urls":["stun:101.33.250.225:3478"],"username":"","credential":""}],"iceTransportPolicy":"all","iceCandidatePoolSize":"0"}
+            let serverConfig1 =  {"iceServers":[{"urls":["stun:stun.l.google.com:19302"]}],"iceTransportPolicy":"all","iceCandidatePoolSize":"0"}
+            var peer = new RTCPeerConnection(serverConfig);
+    
+            var dataChannel = peer.createDataChannel('')
+            dataChannel.onmessage = function(event){
+                debugger
+            }
+            peer.oniceconnectionstatechange = (ev) => {
+                console.log('RTCPeerConnection ICE state change', peer.iceConnectionState, JSON.stringify(ev))
+            }
+
+            peer.onicecandidateerror = (ev) => {
+                debugger
+                console.log('ice candidate error', JSON.stringify(ev))
+            }
+
+            function onStreamAdded (stream) {
+                
+                stream.onended = function(event) {
+                    debugger
+                };
+
+                var video = document.createElement('video');
+                document.body.appendChild(video)
+                video.srcObject = stream;
+                video.autoplay = true;
+                video.controls = true;
+                video.play();
+                
+                // var streamObject = {
+                //     mediaElement: video,
+                //     stream: stream,
+                //     type: 'remote'
+                // };
+                // document.body.appendChild(video)
+                
+            }
+            
+            peer.onaddstream = function(obj) {
+                   
+                    var video = document.createElement("video");
+                    document.body.appendChild(video);
+                    video.controls = true;
+                    video.muted = false;
+                    video.autoplay = true;
+                    video.srcObject = obj.stream;
+                    // video.play();
+                    // video.onloadedmetadata = function(event) {
+                    //     video.play();
+                    // };
+                }
+                // peer.iceconnectionstatechange = function(event){
+                //     debugger
+                // }
+                peer.ondatachannel = function(event){
+                    debugger
+                }
+                peer.onicecandidate = function(event){
+                    
+                    if(!event.candidate)
+                        return;
+                    axios.post('/answer/candidate/send', event.candidate).then(function (response) {
+                        console.log(response);
+                    }).catch(function (error) {
+                        console.log(error);
+                    });
+                }
+                
+                var dontDuplicate = {};
+                peer.ontrack = function(event) {
+                    
+                    var stream = event.streams[0];
+                    if(dontDuplicate[stream.id]) return;
+                    dontDuplicate[stream.id] = true;
+                    // onStreamAdded(stream);
+                };
+
+            
+            // Helper functions
+            function endCall() {
+                var videos = document.getElementsByTagName("video");
+                for (var i = 0; i < videos.length; i++) {
+                    videos[i].pause();
+                }
+
+                peer.close();
+            }
+
+            function error(err) { endCall(); }
+            
+            function getUserMedia(callback) {
+                
+                var hints = {
+                    audio: true,
+                    video: {
+                        // optional: [],
+                        // mandatory: {},
+                        width: 300, height: 200
+                    }
+                };
+                navigator.mediaDevices.getUserMedia(hints).then(function(mediaStream) {
+                    var video = document.createElement('video');
+                    document.body.appendChild(video);
+                    video.srcObject = mediaStream;
+                    video.controls = true;
+                    video.muted = true;
+                    video.onloadedmetadata = function(event) {
+                        video.play();
+                    };
+                    callback(mediaStream)
+                })
+            }
+
+            getUserMedia(function(stream) {
+                if (stream) {
+                    stream.getTracks().forEach(function(track) {
+                        peer.addTrack(track, stream);
+                    });
+                }
+                // peer.addStream(stream);
+                axios.get('/offer/sdp/get').then(function (response) {
+                    
+                    let offer = response.data
+                    peer.setRemoteDescription(new RTCSessionDescription(offer), function() {
+                        peer.createAnswer(function(answer) {
+                            
+                            axios.post('/answer/candidate/clear', {})
+                            peer.setLocalDescription(new RTCSessionDescription(answer), function() {
+                                axios.post('/answer/sdp/send', answer).then(function (response) {
+                                    console.log(response);
+                                }).catch(function (error) {
+                                    console.log(error);
+                                });
+                                axios.get('/offer/candidate/get').then(function (response) {
+                                    let candidateList = response.data;
+                                        candidateList.forEach(candidate =>{
+                                            peer.addIceCandidate(new RTCIceCandidate({
+                                                sdpMLineIndex: candidate.sdpMLineIndex,
+                                                candidate: candidate.candidate
+                                            }))
+                                            
+                                    })
+                                    
+                                })
+                            }, error);
+                        }, error);
+
+                    }, error);
+                    
+                
+                }).catch(function (error) {
+                    console.log(error);
+                });
+                
+                
+
+            })
+        </script>
+
+    </body>
+</html>

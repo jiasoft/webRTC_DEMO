@@ -1,22 +1,20 @@
-const express = require('express')
-const https = require('https')
-const http = require('http')
-const fs = require('fs')
-const path = require('path')
-
+const express = require('express');
+const https = require('https');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const options = {
-    key: fs.readFileSync('fake-keys/turn_server_pkey.pem'),
-    cert: fs.readFileSync('fake-keys/turn_server_cert.pem'),
-    // pfx: fs.readFileSync('fake-keys/dotnetty.pfx'),
-    // passphrase:'yangyiquan'
-  };
-
+  key: fs.readFileSync('fake-keys/turn_server_pkey.pem'),
+  cert: fs.readFileSync('fake-keys/turn_server_cert.pem'),
+  // pfx: fs.readFileSync('fake-keys/dotnetty.pfx'),
+  // passphrase:'yangyiquan'
+};
 const app = express()
 let httpsServer = https.createServer(options,app)
-let httpServer = http.createServer(app)
+let httpServer = http.createServer(app);
 
-app.use(express.json()) // for parsing application/json
-app.use(express.urlencoded({ extended: true })) // for parsing application/x-www-form-urlencoded
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 const offerSessionSdp = []
 const answerSessionSdp = []
 const offerCandidate = []

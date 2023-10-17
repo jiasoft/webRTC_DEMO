@@ -21,7 +21,7 @@
 
             let serverConfig = {"iceServers":[{"urls":["stun:101.33.250.225:3478"],"username":"","credential":""}],"iceTransportPolicy":"all","iceCandidatePoolSize":"0"}
             let serverConfig1 =  {"iceServers":[{"urls":["stun:stun.l.google.com:19302"]}],"iceTransportPolicy":"all","iceCandidatePoolSize":"0"}
-            var peer = new RTCPeerConnection(serverConfig);
+            var peer = new RTCPeerConnection(serverConfig1);
     
             var dataChannel = peer.createDataChannel('')
             dataChannel.onmessage = function(event){

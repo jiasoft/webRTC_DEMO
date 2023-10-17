@@ -5,9 +5,9 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title></title>
+        <title>answer</title>
 
-       
+        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -33,7 +33,7 @@
 
             peer.onicecandidateerror = (ev) => {
                 debugger
-                console.log('ice candidate error', JSON.stringify(ev))
+                console.error('ice candidate error', ev)
             }
 
             function onStreamAdded (stream) {
@@ -75,7 +75,8 @@
                 //     debugger
                 // }
                 peer.ondatachannel = function(event){
-                    debugger
+                    
+                    console.log('ondatachannel',event);
                 }
                 peer.onicecandidate = function(event){
                     
@@ -151,7 +152,7 @@
                                 axios.post('/answer/sdp/send', answer).then(function (response) {
                                     console.log(response);
                                 }).catch(function (error) {
-                                    console.log(error);
+                                    console.error(error);
                                 });
                                 axios.get('/offer/candidate/get').then(function (response) {
                                     let candidateList = response.data;
@@ -171,7 +172,7 @@
                     
                 
                 }).catch(function (error) {
-                    console.log(error);
+                    console.error(error);
                 });
                 
                 

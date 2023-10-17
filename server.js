@@ -106,6 +106,6 @@ app.post('/answer/candidate/clear',function(req,res,next){
   answerCandidate.length = 0
   res.end('{success:1}')
 })
-httpsServer.listen(3000)
-httpServer.listen(3001)
-console.log('start...')
+httpsServer.listen(3000);
+httpServer.listen(3001);
+console.log('https://xxx.xxx.xxx.xxx:3000 或 http://xxx.xxx.xxx.xxx:3001');

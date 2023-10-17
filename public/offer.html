@@ -5,8 +5,8 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title></title>
-
+        <title>offer</title>
+        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
        
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <meta charset="utf-8">
@@ -41,18 +41,18 @@
                 // };
             }
 
-            let serverConfig = {"iceServers":[{"urls":["stun:101.33.250.225:3478"],"username":"","credential":""}],"iceTransportPolicy":"all","iceCandidatePoolSize":"0"}
-            let serverConfig1 =  {"iceServers":[{"urls":["stun:stun.l.google.com:19302"]}],"iceTransportPolicy":"all","iceCandidatePoolSize":"0"}
-            var peer = new RTCPeerConnection(serverConfig);
-            var dataChannel = peer.createDataChannel('')
+            const serverConfig = {"iceServers":[{"urls":["stun:101.33.250.225:3478"],"username":"","credential":""}],"iceTransportPolicy":"all","iceCandidatePoolSize":"0"}
+            const serverConfig1 =  {"iceServers":[{"urls":["stun:stun.l.google.com:19302"]}],"iceTransportPolicy":"all","iceCandidatePoolSize":"0"}
+            const peer = new RTCPeerConnection(serverConfig1);
+            const dataChannel = peer.createDataChannel('')
             dataChannel.onmessage = function(event){debugger}
             peer.oniceconnectionstatechange = (ev) => {
-                console.log('RTCPeerConnection ICE state change', peer.iceConnectionState, JSON.stringify(ev))
+                console.log('RTCPeerConnection ICE state change', peer.iceConnectionState, ev)
             }
 
             peer.onicecandidateerror = (ev) => {
                 debugger
-                console.log('ice candidate error', JSON.stringify(ev))
+                console.error('ice candidate error', ev)
             }
 
             function error(event) { debugger }
@@ -106,7 +106,7 @@
             //     debugger
             // }
             peer.ondatachannel = function(event){
-                debugger
+                console.log('ondatachannel',event);
             }
             peer.onicecandidate = function(event){
                 
@@ -117,7 +117,7 @@
                     console.log(response);
                 })
                 .catch(function (error) {
-                    console.log(error);
+                    console.error(error);
                 });
             }
             var dontDuplicate = {};

@@ -18,6 +18,7 @@
 
     <body>
         <button type="button" onclick="findAnswer(event)">find answer</button>
+        
         <script>
             function onStreamAdded (stream) {
                
@@ -41,9 +42,9 @@
                 // };
             }
 
-            const serverConfig = {"iceServers":[{"urls":["stun:101.33.250.225:3478"],"username":"","credential":""}],"iceTransportPolicy":"all","iceCandidatePoolSize":"0"}
-            const serverConfig1 =  {"iceServers":[{"urls":["stun:stun.l.google.com:19302"]}],"iceTransportPolicy":"all","iceCandidatePoolSize":"0"}
-            const peer = new RTCPeerConnection(serverConfig1);
+            const serverConfig = {"iceServers":[{"urls":["stun:127.0.0.1:3478"]}],"iceTransportPolicy":"all"}
+            const serverConfigGL =  {"iceServers":[{"urls":["stun:stun.l.google.com:19302"]}],"iceTransportPolicy":"all"}
+            const peer = new RTCPeerConnection(serverConfigGL);
             const dataChannel = peer.createDataChannel('')
             dataChannel.onmessage = function(event){debugger}
             peer.oniceconnectionstatechange = (ev) => {
@@ -90,7 +91,7 @@
 
             peer.onaddstream = function(obj){
                 
-                var video = document.createElement("video");
+                const video = document.createElement("video");
                 document.body.appendChild(video);
                 video.controls = true;
                 video.muted = true;
@@ -112,6 +113,10 @@
                 
                 if(!event.candidate)
                     return;
+                console.log(":::::onicecandidate::::::",event.candidate.type,event.candidate);
+                const message = document.createElement('div');
+                message.innerHTML = `<div>onicecandidate:<span style="color:red">${event.candidate.type}</span>,  ${JSON.stringify(event.candidate)} </div>`;
+                document.body.appendChild(message);
                 axios.post('/offer/candidate/send', event.candidate)
                 .then(function (response) {
                     console.log(response);
@@ -120,10 +125,10 @@
                     console.error(error);
                 });
             }
-            var dontDuplicate = {};
+            const dontDuplicate = {};
             peer.ontrack = function(event) {
                 
-                var stream = event.streams[0];
+                const stream = event.streams[0];
                 if(dontDuplicate[stream.id]) return;
                 dontDuplicate[stream.id] = true;
                 // onStreamAdded(stream);
@@ -154,7 +159,7 @@
             });
             function getUserMedia(callback) {
                 
-                var hints = {
+                const hints = {
                     audio: true,
                     video: {
                         // optional: [],
@@ -163,7 +168,8 @@
                     }
                 };
                 navigator.mediaDevices.getUserMedia(hints).then(function(mediaStream) {
-                    var video = document.createElement('video');
+                    const video = document.createElement('video');
+                  
                     document.body.appendChild(video);
                     video.srcObject = mediaStream;
                     video.controls = true;

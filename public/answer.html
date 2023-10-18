@@ -24,88 +24,63 @@
             const serverConfig = {"iceServers":[{"urls":["stun:www.dudult.com:3478"]}],"iceTransportPolicy":"all"}
             const serverConfigGL =  {"iceServers":[{"urls":["stun:stun.l.google.com:19302"]}],"iceTransportPolicy":"all"}
             const peer = new RTCPeerConnection(serverConfigGL);
-    
+            //createDataChannel发送文字相关的
             const dataChannel = peer.createDataChannel('')
             dataChannel.onmessage = function(event){
-                debugger
+                console.log(event)
             }
             peer.oniceconnectionstatechange = (ev) => {
-                console.log('RTCPeerConnection ICE state change', peer.iceConnectionState, JSON.stringify(ev))
+                console.log('RTCPeerConnection ICE state change', peer.iceConnectionState, ev)
             }
 
             peer.onicecandidateerror = (ev) => {
-                debugger
                 console.error('ice candidate error', ev)
             }
 
-            function onStreamAdded (stream) {
-                
-                stream.onended = function(event) {
-                    debugger
-                };
-
-                const video = document.createElement('video');
-                document.getElementById('videoBox').appendChild(video);
-                video.srcObject = stream;
-                video.autoplay = true;
-                video.controls = true;
-                video.play();
-                
-                // var streamObject = {
-                //     mediaElement: video,
-                //     stream: stream,
-                //     type: 'remote'
-                // };
-                // document.body.appendChild(video)
-                
-            }
+            
             
             peer.onaddstream = function(obj) {
                    
-                    const video = document.createElement("video");
-                    document.getElementById('videoBox').appendChild(video);
-                    video.controls = true;
-                    video.muted = false;
-                    video.autoplay = true;
-                    video.srcObject = obj.stream;
-                    // video.play();
-                    // video.onloadedmetadata = function(event) {
-                    //     video.play();
-                    // };
-                }
-                // peer.iceconnectionstatechange = function(event){
-                //     debugger
-                // }
-                peer.ondatachannel = function(event){
-                    
-                    console.log('ondatachannel',event);
-                }
-                peer.onicecandidate = function(event){
-                    
-                    if(!event.candidate)
-                        return;
-                    console.log(":::::onicecandidate::::::",event.candidate.type,event.candidate);
-                    const message = document.createElement('div');
-                    message.innerHTML = `<div class="message">onicecandidate:<span style="color:red">${event.candidate.type}</span>,  ${JSON.stringify(event.candidate)} </div>`;
-                    document.body.appendChild(message);
-                    axios.post('/answer/candidate/send', event.candidate).then(function (response) {
-                        console.log(response);
-                    }).catch(function (error) {
-                        console.log(error);
-                    });
-                }
+                const video = document.createElement("video");
+                document.getElementById('videoBox').appendChild(video);
+                video.controls = true;
+                video.muted = false;
+                video.autoplay = true;
+                video.srcObject = obj.stream;
+                // video.play();
+                // video.onloadedmetadata = function(event) {
+                //     video.play();
+                // };
+            }
+            
+            peer.ondatachannel = function(event){
                 
-                const dontDuplicate = {};
-                peer.ontrack = function(event) {
-                    
-                    var stream = event.streams[0];
-                    if(dontDuplicate[stream.id]) return;
-                    dontDuplicate[stream.id] = true;
-                    // onStreamAdded(stream);
-                };
+                console.log('ondatachannel',event);
+            }
+            peer.onicecandidate = function(event){
+                
+                if(!event.candidate)
+                    return;
+                console.log("onicecandidate:",event.candidate.type,event.candidate);
+                const message = document.createElement('div');
+                message.innerHTML = `<div class="message">onicecandidate:<span style="color:red">${event.candidate.type}</span>,  ${JSON.stringify(event.candidate)} </div>`;
+                document.body.appendChild(message);
+                axios.post('/answer/candidate/send', event.candidate).then(function (response) {
+                    console.log(response);
+                }).catch(function (error) {
+                    console.log(error);
+                });
+            }
+            
+            // const dontDuplicate = {};
+            // peer.ontrack = function(event) {
+                
+            //     var stream = event.streams[0];
+            //     if(dontDuplicate[stream.id]) return;
+            //     dontDuplicate[stream.id] = true;
+            // };
 
             
-            // Helper functions
             function endCall() {
                 var videos = document.getElementsByTagName("video");
                 for (var i = 0; i < videos.length; i++) {
@@ -115,7 +90,7 @@
                 peer.close();
             }
 
-            function error(err) { endCall(); }
+            function catchError(err) { endCall(); }
             
             function getUserMedia(callback) {
                 
@@ -147,7 +122,6 @@
                         peer.addTrack(track, stream);
                     });
                 }
-                // peer.addStream(stream);
                 axios.get('/offer/sdp/get').then(function (response) {
                     
                     const offer = response.data
@@ -172,10 +146,10 @@
                                     })
                                     
                                 })
-                            }, error);
-                        }, error);
+                            }, catchError);
+                        }, catchError);
 
-                    }, error);
+                    }, catchError);
                     
                 
                 }).catch(function (error) {

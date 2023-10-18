@@ -20,47 +20,29 @@
     <body>
         
         <div id="videoBox"></div>
-        <button type="button" onclick="findAnswer(event)">find answer</button>
+        <button type="button" onclick="waitAnswer(event)">wait answer</button>
         <script>
-            function onStreamAdded (stream) {
-               
-                stream.onended = function (event) {
-                    debugger
-                };
-
-                const video = document.createElement('video');
-                document.getElementById('videoBox').appendChild(video)
-                video.id = "id_100"
-                video.srcObject = stream;
-                video.autoplay = true;
-                video.controls = true;
-                // video.play();
-                
-                // var streamObject = {
-                //     mediaElement: video,
-                //     stream: stream,
-                //     userid: root.participant,
-                //     type: 'remote'
-                // };
-            }
-
             const serverConfig = {"iceServers":[{"urls":["stun:127.0.0.1:3478"]}],"iceTransportPolicy":"all"}
             const serverConfigGL =  {"iceServers":[{"urls":["stun:stun.l.google.com:19302"]}],"iceTransportPolicy":"all"}
             const peer = new RTCPeerConnection(serverConfigGL);
-            const dataChannel = peer.createDataChannel('')
-            dataChannel.onmessage = function(event){debugger}
+
+            //createDataChannel发送文字相关的
+            const dataChannel = peer.createDataChannel('');
+            dataChannel.onmessage = function(event){
+                console.log(event)
+            }
             peer.oniceconnectionstatechange = (ev) => {
                 console.log('RTCPeerConnection ICE state change', peer.iceConnectionState, ev)
             }
 
             peer.onicecandidateerror = (ev) => {
-                debugger
+                
                 console.error('ice candidate error', ev)
             }
 
-            function error(event) { debugger }
+            function catchError(event) { console.error(event) }
 
-            function findAnswer(event){
+            function waitAnswer(event){
                 event.target.innerHTML = 'find ...';
                 event.target.setAttribute('disabled',true);
                 (function find(){
@@ -80,8 +62,6 @@
                                         sdpMLineIndex: candidate.sdpMLineIndex,
                                         candidate: candidate.candidate
                                     }))
-                                   
-                                    
                             })
                             
                         })
@@ -106,9 +86,6 @@
                 // };
             }
             
-            // peer.iceconnectionstatechange = function(event){
-            //     debugger
-            // }
             peer.ondatachannel = function(event){
                 console.log('ondatachannel',event);
             }
@@ -116,7 +93,7 @@
                 
                 if(!event.candidate)
                     return;
-                console.log(":::::onicecandidate::::::",event.candidate.type,event.candidate);
+                console.log("onicecandidate:",event.candidate.type,event.candidate);
                 const message = document.createElement('div');
                 message.innerHTML = `<div class="message">onicecandidate:<span style="color:red">${event.candidate.type}</span>,  ${JSON.stringify(event.candidate)} </div>`;
                 document.body.appendChild(message);
@@ -128,38 +105,13 @@
                     console.error(error);
                 });
             }
-            const dontDuplicate = {};
-            peer.ontrack = function(event) {
+            // const dontDuplicate = {};
+            // peer.ontrack = function(event) {
                 
-                const stream = event.streams[0];
-                if(dontDuplicate[stream.id]) return;
-                dontDuplicate[stream.id] = true;
-                // onStreamAdded(stream);
-            };
-            getUserMedia(function(stream) {
-                
-                if (stream) {
-                    stream.getTracks().forEach(function(track) {
-                        peer.addTrack(track, stream);
-                    });
-                }
-                
-                // peer.addStream(stream);
-                peer.createOffer(function(offer) {
-                    axios.post('/offer/candidate/clear', {})
-                    
-                    peer.setLocalDescription(offer, function() {
-                        
-                        axios.post('/offer/sdp/send', offer)
-                        .then(function (response) {
-                            console.log(response);
-                        })
-                        .catch(function (error) {
-                            console.log(error);
-                        });
-                    });
-                },error);
-            });
+            //     const stream = event.streams[0];
+            //     if(dontDuplicate[stream.id]) return;
+            //     dontDuplicate[stream.id] = true;
+            // };
             function getUserMedia(callback) {
                 
                 const hints = {
@@ -182,6 +134,30 @@
                     callback(mediaStream)
                 })
             }
+            getUserMedia(function(stream) {
+                
+                if (stream) {
+                    stream.getTracks().forEach(function(track) {
+                        peer.addTrack(track, stream);
+                    });
+                }
+                
+                peer.createOffer(function(offer) {
+                    axios.post('/offer/candidate/clear', {})
+                    
+                    peer.setLocalDescription(offer, function() {
+                        
+                        axios.post('/offer/sdp/send', offer)
+                        .then(function (response) {
+                            console.log(response);
+                        })
+                        .catch(function (error) {
+                            console.log(error);
+                        });
+                    });
+                },catchError);
+            });
+            
         </script>
 
     </body>

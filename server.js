@@ -60,7 +60,6 @@ app.get('/',function(req,res,next){
 })
 
 app.post('/offer/sdp/send',function(req,res,next){
-  
   offerSessionSdp.push(req.body)
   offerCandidate.length = 0
   answerSessionSdp.length = 0
@@ -70,7 +69,6 @@ app.get('/offer/sdp/get',function(req,res,next){
   res.json(offerSessionSdp[offerSessionSdp.length-1])
 })
 app.post('/answer/sdp/send',function(req,res,next){
- 
   answerSessionSdp.push(req.body)
   res.end('{success:1}')
 })
@@ -79,13 +77,11 @@ app.get('/answer/sdp/get',function(req,res,next){
 })
 
 app.post('/offer/candidate/send',function(req,res,next){
- 
   offerCandidate.push(req.body)
   answerCandidate.length = 0;
   res.end('{success:1}')
 })
 app.get('/offer/candidate/get',function(req,res,next){
-  
   res.json(offerCandidate)
 })
 app.post('/offer/candidate/clear',function(req,res,next){
@@ -93,16 +89,13 @@ app.post('/offer/candidate/clear',function(req,res,next){
   res.end('{success:1}')
 })
 app.post('/answer/candidate/send',function(req,res,next){
- 
   answerCandidate.push(req.body)
   res.end('{success:1}')
 })
 app.get('/answer/candidate/get',function(req,res,next){
-  
   res.json(answerCandidate)
 })
 app.post('/answer/candidate/clear',function(req,res,next){
- 
   answerCandidate.length = 0
   res.end('{success:1}')
 })

@@ -4,161 +4,182 @@
 -->
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <title>offer</title>
-        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-       
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-        <meta name="author" content="qiutujia">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-        <style>.message{margin:5px;color:#666}</style>
-    </head>
 
-    <body>
-        
-        <div id="videoBox"></div>
-        <button type="button" onclick="waitAnswer(event)">wait answer</button>
-        <script>
-            const serverConfig = {"iceServers":[{"urls":["stun:127.0.0.1:3478"]}],"iceTransportPolicy":"all"}
-            const serverConfigGL =  {"iceServers":[{"urls":["stun:stun.l.google.com:19302"]}],"iceTransportPolicy":"all"}
-            const peer = new RTCPeerConnection(serverConfigGL);
+<head>
+    <title>A端（offer）</title>
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
 
-            //createDataChannel发送文字相关的
-            const dataChannel = peer.createDataChannel('');
-            dataChannel.onmessage = function(event){
-                console.log(event)
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="author" content="qiutujia">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        .message {
+            margin: 5px;
+            color: #666
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="videoBox"></div>
+    <button type="button" id="waitAnswerEl" onclick="waitAnswer(event)">等待answer</button>
+    <script>
+        //1.初始化RTCPeerConnection,设置STUN server
+        //  注意 stun:www.dudult.com:3478是我搭建的服务器
+        //  stun:stun.l.google.com:19302是谷歌提供
+        //  先用谷歌的吧，我的还在调试中
+        const serverConfig = {
+            "iceServers": [{
+                "urls": ["stun:www.dudult.com:3478"]
+            }],
+            "iceTransportPolicy": "all"
+        }
+        const serverConfigGL = {
+            "iceServers": [{
+                "urls": ["stun:stun.l.google.com:19302"]
+            }],
+            "iceTransportPolicy": "all"
+        }
+        const RTCPeer = new RTCPeerConnection(serverConfigGL);
+
+        //createDataChannel发送文字相关的
+        const dataChannel = RTCPeer.createDataChannel('');
+        dataChannel.onmessage = function (event) {
+            console.log(event)
+        }
+        RTCPeer.oniceconnectionstatechange = (ev) => {
+            console.log('RTCPeerConnection ICE state change', RTCPeer.iceConnectionState, ev)
+        }
+        RTCPeer.onicecandidateerror = (ev) => {
+            console.error('ice candidate error', ev)
+        }
+        function endCall() {
+            var videos = document.getElementsByTagName("video");
+            for (var i = 0; i < videos.length; i++) {
+                videos[i].pause();
             }
-            peer.oniceconnectionstatechange = (ev) => {
-                console.log('RTCPeerConnection ICE state change', peer.iceConnectionState, ev)
-            }
 
-            peer.onicecandidateerror = (ev) => {
-                
-                console.error('ice candidate error', ev)
-            }
+            RTCPeer.close();
+        }
+        //错误处理
+        function catchError(event) { console.error(event);endCall() }
 
-            function catchError(event) { console.error(event) }
+        //4.等待接收Answer
+        function waitAnswer() {
 
-            function waitAnswer(event){
-                event.target.innerHTML = 'find ...';
-                event.target.setAttribute('disabled',true);
-                (function find(){
-                    axios.get('/answer/sdp/get').then(function (response) {
+            document.getElementById('waitAnswerEl').innerHTML = '等待 answer...';
+            document.getElementById('waitAnswerEl').setAttribute('disabled', true);
+
+            (function waitLoop() { //循环等待
+                axios.get('/answer/sdp/get').then(function (response) {
 
                     let answer = response.data
-                    if(!answer){
-                        setTimeout(find,500)
+                    if (!answer) {
+                        setTimeout(waitLoop, 500)
                         return
                     }
-                    peer.setRemoteDescription(new RTCSessionDescription(answer), function(e) {
+                    RTCPeer.setRemoteDescription(new RTCSessionDescription(answer), function (e) {
                         axios.get('/answer/candidate/get').then(function (response) {
-                            event.target.style.display = 'none'
+                            document.getElementById('waitAnswerEl').innerHTML = '连接成功'
                             let candidateList = response.data;
-                            candidateList.forEach(candidate =>{
-                                    peer.addIceCandidate(new RTCIceCandidate({
-                                        sdpMLineIndex: candidate.sdpMLineIndex,
-                                        candidate: candidate.candidate
-                                    }))
+                            candidateList.forEach(candidate => {
+                                RTCPeer.addIceCandidate(new RTCIceCandidate({
+                                    sdpMLineIndex: candidate.sdpMLineIndex,
+                                    candidate: candidate.candidate
+                                }))
                             })
-                            
+
                         })
                     })
-                })
-                })()
-                
-            }
+                });
+            })();
 
-            peer.onaddstream = function(obj){
-                
-                const video = document.createElement("video");
+        }
 
-                document.getElementById('videoBox').appendChild(video);
-                video.controls = true;
-                video.muted = true;
-                video.autoplay = true;
-                video.srcObject = obj.stream;
-                // video.play();
-                // video.onloadedmetadata = function(event) {
-                //     video.play();
-                // };
-            }
-            
-            peer.ondatachannel = function(event){
-                console.log('ondatachannel',event);
-            }
-            peer.onicecandidate = function(event){
-                
-                if(!event.candidate)
-                    return;
-                console.log("onicecandidate:",event.candidate.type,event.candidate);
-                const message = document.createElement('div');
-                message.innerHTML = `<div class="message">onicecandidate:<span style="color:red">${event.candidate.type}</span>,  ${JSON.stringify(event.candidate)} </div>`;
-                document.body.appendChild(message);
-                axios.post('/offer/candidate/send', event.candidate)
+        RTCPeer.onaddstream = function (obj) {
+
+            const video = document.createElement("video");
+
+            document.getElementById('videoBox').appendChild(video);
+            video.controls = true;
+            video.muted = true;
+            video.autoplay = true;
+            video.srcObject = obj.stream;
+            video.play();
+            video.onloadedmetadata = function(event) {
+                video.play();
+            };
+        }
+
+        RTCPeer.ondatachannel = function (event) {
+            console.log('ondatachannel', event);
+        }
+        RTCPeer.onicecandidate = function (event) {
+
+            if (!event.candidate)
+                return;
+            console.log("onicecandidate:", event.candidate.type, event.candidate);
+            const message = document.createElement('div');
+            message.innerHTML = `<div class="message">onicecandidate:<span style="color:red">${event.candidate.type}</span>,  ${JSON.stringify(event.candidate)} </div>`;
+            document.body.appendChild(message);
+            axios.post('/offer/candidate/send', event.candidate)
                 .then(function (response) {
                     console.log(response);
                 })
                 .catch(function (error) {
                     console.error(error);
                 });
-            }
-            // const dontDuplicate = {};
-            // peer.ontrack = function(event) {
-                
-            //     const stream = event.streams[0];
-            //     if(dontDuplicate[stream.id]) return;
-            //     dontDuplicate[stream.id] = true;
-            // };
-            function getUserMedia(callback) {
-                
-                const hints = {
-                    audio: true,
-                    video: {
-                        // optional: [],
-                        // mandatory: {},
-                        width: 300, height: 200
-                    }
-                };
-                navigator.mediaDevices.getUserMedia(hints).then(function(mediaStream) {
-                    const video = document.createElement('video');
-                    document.getElementById('videoBox').appendChild(video);
-                    video.srcObject = mediaStream;
-                    video.controls = true;
-                    video.muted = true;
-                    video.onloadedmetadata = function(event) {
-                        video.play();
-                    };
-                    callback(mediaStream)
-                })
-            }
-            getUserMedia(function(stream) {
-                
-                if (stream) {
-                    stream.getTracks().forEach(function(track) {
-                        peer.addTrack(track, stream);
-                    });
-                }
-                
-                peer.createOffer(function(offer) {
-                    axios.post('/offer/candidate/clear', {})
-                    
-                    peer.setLocalDescription(offer, function() {
-                        
-                        axios.post('/offer/sdp/send', offer)
-                        .then(function (response) {
-                            console.log(response);
-                        })
-                        .catch(function (error) {
-                            console.log(error);
-                        });
-                    });
-                },catchError);
-            });
-            
-        </script>
+        }
 
-    </body>
+
+        //2.打开自已的视频, 把视频的流放在RTCPeer里
+        function getUserMedia(callback) {
+            const hints = {
+                audio: true,
+                video: {
+                    width: 300, height: 200
+                }
+            };
+            navigator.mediaDevices.getUserMedia(hints).then(function (mediaStream) {
+                const video = document.createElement('video');
+                document.getElementById('videoBox').appendChild(video);
+                video.srcObject = mediaStream;
+                video.controls = true;
+                video.muted = true;
+                video.onloadedmetadata = function (event) {
+                    video.play();
+                };
+                callback(mediaStream)
+            })
+        }
+        getUserMedia(function (stream) {
+
+            if (stream) {
+                //把视频的流放在RTCPeer里
+                stream.getTracks().forEach(function (track) {
+                    RTCPeer.addTrack(track, stream);
+                });
+            }
+            //3.创建offer,发送SDP
+            RTCPeer.createOffer(async function (offer) {
+                RTCPeer.setLocalDescription(offer, function () {
+                    //发送SDP
+                    axios.post('/offer/sdp/send', offer).then(function (response) {
+                        console.log("/offer/sdp/send", response);
+                        waitAnswer();//等待接收Answer
+                    }).catch(function (error) {
+                        console.log(error);
+                    });
+                });
+            }, catchError);
+        });
+
+    </script>
+
+</body>
+
 </html>

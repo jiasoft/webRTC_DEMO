@@ -31,7 +31,7 @@
         //1.初始化RTCPeerConnection,设置STUN server
         //  注意 stun:www.dudult.com:3478是我搭建的服务器
         //  stun:stun.l.google.com:19302是谷歌提供
-        //  先用谷歌的吧，我的还在调试中
+        //  先用谷歌的吧，我搭建的服务器的还在调试中
         const serverConfig = {
             "iceServers": [{
                 "urls": ["stun:www.dudult.com:3478"]
@@ -68,7 +68,7 @@
         //错误处理
         function catchError(event) { console.error(event);endCall() }
 
-        //4.等待接收Answer
+        //4.接收Answer
         function waitAnswer() {
 
             document.getElementById('waitAnswerEl').innerHTML = '等待 answer...';
@@ -83,6 +83,7 @@
                         return
                     }
                     RTCPeer.setRemoteDescription(new RTCSessionDescription(answer), function (e) {
+                        //6. 收集B端的candidate
                         axios.get('/answer/candidate/get').then(function (response) {
                             document.getElementById('waitAnswerEl').innerHTML = '连接成功'
                             let candidateList = response.data;
@@ -100,10 +101,9 @@
 
         }
 
+        //7.连接成功,通过 RTCPeer.onaddstream 获取到对方的视频 显示
         RTCPeer.onaddstream = function (obj) {
-
             const video = document.createElement("video");
-
             document.getElementById('videoBox').appendChild(video);
             video.controls = true;
             video.muted = true;
@@ -118,14 +118,17 @@
         RTCPeer.ondatachannel = function (event) {
             console.log('ondatachannel', event);
         }
+        //5.获取自已的candidate
         RTCPeer.onicecandidate = function (event) {
 
             if (!event.candidate)
                 return;
+            //把candidate输出来好调试
             console.log("onicecandidate:", event.candidate.type, event.candidate);
             const message = document.createElement('div');
             message.innerHTML = `<div class="message">onicecandidate:<span style="color:red">${event.candidate.type}</span>,  ${JSON.stringify(event.candidate)} </div>`;
             document.body.appendChild(message);
+            //发送candidate
             axios.post('/offer/candidate/send', event.candidate)
                 .then(function (response) {
                     console.log(response);
@@ -170,7 +173,8 @@
                     //发送SDP
                     axios.post('/offer/sdp/send', offer).then(function (response) {
                         console.log("/offer/sdp/send", response);
-                        waitAnswer();//等待接收Answer
+                        //4.接收Answer
+                        waitAnswer();
                     }).catch(function (error) {
                         console.log(error);
                     });

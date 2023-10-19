@@ -37,7 +37,7 @@
     <button type="button" id="waitAnswerEl" onclick="waitAnswer(event)">等待answer</button>
     <script type="module">
        
-        //1.初始化RTCPeerConnection,设置STUN server
+        //一.初始化RTCPeerConnection,设置STUN server
         //  注意 stun:www.dudult.com:3478是我搭建的服务器
         //  stun:stun.l.google.com:19302是谷歌提供
         //  先用谷歌的吧，我搭建的服务器的还在调试中
@@ -76,7 +76,7 @@
         //先初始化服务，服务相关的代码请看server.js
         await axios.post('/init');
         
-        //5.获取自已的candidate，发送candidate
+        //二.获取自已的candidate，发送candidate
         RTCPeer.onicecandidate = async (event) => {
 
             if (!event.candidate)
@@ -103,7 +103,7 @@
         }
         const waitCandidate = () => {
             (async function waitLoop() { //循环等待
-                //6. 收集B端的candidate
+                //六. 收集B端的candidate
                 const responseCandidate = await axios.get('/answer/candidate/get');
                 if(!responseCandidate.data || !responseCandidate.data.length){
                     setTimeout(()=>{
@@ -148,7 +148,7 @@
         
 
 
-        //2.打开自已的视频, 把视频的流放在RTCPeer里
+        //三.打开自已的视频, 把视频的流放在RTCPeer里
         const getUserMedia = async (callback) => {
             const hints = {
                 audio: true,
@@ -176,15 +176,15 @@
             });
         }
 
-        //3.创建offer, 发送SDP
+        //四.创建offer, 发送offerr的SDP
         const offer = await RTCPeer.createOffer()
         await RTCPeer.setLocalDescription(offer);
         await axios.post('/offer/sdp/send', offer);
 
-        //4.接收Answer
+        //五.接收Answer的sdp
         waitAnswer();
        
-        //7.连接成功,通过 RTCPeer.onaddstream 获取到对方的视频 显示
+        //七.连接成功,通过 RTCPeer.onaddstream 获取到对方的视频 显示
         RTCPeer.onaddstream = function (obj) {
             const video = document.createElement("video");
             video.classList.add('remote');

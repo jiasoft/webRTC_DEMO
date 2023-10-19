@@ -33,7 +33,7 @@
 <body>
     <div id="videoBox"></div>
     <script type="module">
-       //1.初始化RTCPeerConnection,设置STUN server
+        //  一.初始化RTCPeerConnection,设置STUN server
         //  注意 stun:www.dudult.com:3478是我搭建的服务器
         //  stun:stun.l.google.com:19302是谷歌提供
         //  先用谷歌的吧，我搭建的服务器的还在调试中
@@ -60,7 +60,7 @@
             console.log('ondatachannel', event);
         }
 
-        //5.获取自已的candidate
+        //二.获取自已的candidate
         RTCPeer.onicecandidate = async (event) => {
 
             if (!event.candidate)
@@ -88,7 +88,7 @@
         const waitCandidate = () => {
             
             (async function waitLoop() { //循环等待
-                //6. 收集A端的candidate
+                //收集A端的candidate
                 const responseCandidate = await axios.get('/offer/candidate/get');
                 if(!responseCandidate.data || !responseCandidate.data.length) {
                     setTimeout(() => {waitLoop();},500)
@@ -115,11 +115,12 @@
                     return;
                 }
                 await RTCPeer.setRemoteDescription(new RTCSessionDescription(offer));
-                //4.创建answer,并发送answer的sdp;
+                //五.创建answer,并发送answer的sdp;
                 const answer = await RTCPeer.createAnswer();
                 await RTCPeer.setLocalDescription(new RTCSessionDescription(answer));
                 //发送SDP
                 await axios.post('/answer/sdp/send', answer);
+                //六. 收集A端的Candidate
                 waitCandidate();
             })();
         }
@@ -139,7 +140,7 @@
          }
 
         
-        //2. 打开自已的视频, 把视频的流放在RTCPeer里
+        //三. 打开自已的视频, 把视频的流放在RTCPeer里
         const getUserMedia = async (callback) => {
             const hints = {
                 audio: true,
@@ -161,8 +162,6 @@
             };
             return mediaStream;
         }
-
-
         const stream = await getUserMedia();
         if (stream) {
             //把视频的流放在RTCPeer里
@@ -170,10 +169,11 @@
                 RTCPeer.addTrack(track, stream);
             });
         }
-        //3. 接收offe的SDP,并发送SDP
+
+        //四. 接收offe的SDP,并发送SDP
         waitOffer();
         
-        //7.连接成功,通过 RTCPeer.onaddstream 获取到对方的视频 显示
+        //七.连接成功,通过 RTCPeer.onaddstream 获取到对方的视频 显示
         RTCPeer.onaddstream = function (obj) {
             const video = document.createElement("video");
             video.classList.add('remote');

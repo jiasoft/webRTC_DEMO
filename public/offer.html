@@ -20,6 +20,14 @@
             margin: 5px;
             color: #666
         }
+        .local{
+            background-color: #666;
+            padding:5px;
+        }
+        .remote {
+            background-color: #109a1c;
+            padding:5px;
+        }
     </style>
 </head>
 
@@ -27,7 +35,8 @@
 
     <div id="videoBox"></div>
     <button type="button" id="waitAnswerEl" onclick="waitAnswer(event)">等待answer</button>
-    <script>
+    <script type="module">
+       
         //1.初始化RTCPeerConnection,设置STUN server
         //  注意 stun:www.dudult.com:3478是我搭建的服务器
         //  stun:stun.l.google.com:19302是谷歌提供
@@ -48,62 +57,137 @@
 
         //createDataChannel发送文字相关的
         const dataChannel = RTCPeer.createDataChannel('');
-        dataChannel.onmessage = function (event) {
+        dataChannel.onmessage =  (event) => {
             console.log(event)
         }
-        RTCPeer.oniceconnectionstatechange = (ev) => {
-            console.log('RTCPeerConnection ICE state change', RTCPeer.iceConnectionState, ev)
+        RTCPeer.ondatachannel = function (event) {
+            console.log('ondatachannel', event);
         }
-        RTCPeer.onicecandidateerror = (ev) => {
-            console.error('ice candidate error', ev)
+        RTCPeer.oniceconnectionstatechange = (event) => {
+            console.log('RTCPeerConnection ICE state change', RTCPeer.iceConnectionState, event)
+            if (RTCPeer.connectionState === 'connected') {
+                console.log("连接成功")
+            }
         }
-        function endCall() {
-            var videos = document.getElementsByTagName("video");
-            for (var i = 0; i < videos.length; i++) {
+        RTCPeer.onicecandidateerror = (event) => {
+            console.error('ice candidate error', event)
+        }
+
+        //先初始化服务，服务相关的代码请看server.js
+        await axios.post('/init');
+        
+        //5.获取自已的candidate，发送candidate
+        RTCPeer.onicecandidate = async (event) => {
+
+            if (!event.candidate)
+                return;
+            //把candidate输出来好调试
+            console.log("onicecandidate:", event.candidate.type, event.candidate);
+            const message = document.createElement('div');
+            message.innerHTML = `<div class="message">onicecandidate:
+                <span style="color:red">${event.candidate.type}</span> 
+                ${JSON.stringify(event.candidate)} </div>`;
+            document.body.appendChild(message);
+            //发送candidate
+            await axios.post('/offer/candidate/send', event.candidate);
+        }
+        //错误处理
+        const catchError = (event) => { 
+            console.error(event);
+            const videos = document.getElementsByTagName("video");
+            for (let i = 0; i < videos.length; i++) {
                 videos[i].pause();
             }
 
             RTCPeer.close();
         }
-        //错误处理
-        function catchError(event) { console.error(event);endCall() }
+        const waitCandidate = () => {
+            (async function waitLoop() { //循环等待
+                //6. 收集B端的candidate
+                const responseCandidate = await axios.get('/answer/candidate/get');
+                if(!responseCandidate.data || !responseCandidate.data.length){
+                    setTimeout(()=>{
+                        waitLoop();
+                    },500);
+                    return;  
+                }
 
-        //4.接收Answer
-        function waitAnswer() {
+                let candidateList = responseCandidate.data;
+                candidateList.forEach(candidate => {
+                    RTCPeer.addIceCandidate(new RTCIceCandidate({
+                        sdpMLineIndex: candidate.sdpMLineIndex,
+                        candidate: candidate.candidate
+                    }))
+                });
+            })()
+        }
+        //等待接收Answer
+        const waitAnswer = () => {
 
             document.getElementById('waitAnswerEl').innerHTML = '等待 answer...';
             document.getElementById('waitAnswerEl').setAttribute('disabled', true);
 
-            (function waitLoop() { //循环等待
-                axios.get('/answer/sdp/get').then(function (response) {
+            (async function waitLoop() { //循环等待
+                const responseSdp= await axios.get('/answer/sdp/get')//获取answer的sdp
 
-                    let answer = response.data
-                    if (!answer) {
-                        setTimeout(waitLoop, 500)
-                        return
-                    }
-                    RTCPeer.setRemoteDescription(new RTCSessionDescription(answer), function (e) {
-                        //6. 收集B端的candidate
-                        axios.get('/answer/candidate/get').then(function (response) {
-                            document.getElementById('waitAnswerEl').innerHTML = '连接成功'
-                            let candidateList = response.data;
-                            candidateList.forEach(candidate => {
-                                RTCPeer.addIceCandidate(new RTCIceCandidate({
-                                    sdpMLineIndex: candidate.sdpMLineIndex,
-                                    candidate: candidate.candidate
-                                }))
-                            })
+                let answer = responseSdp.data
+                if (!answer) {
+                    setTimeout(waitLoop, 500)
+                    return
+                }
+                await RTCPeer.setRemoteDescription(new RTCSessionDescription(answer));
 
-                        })
-                    })
-                });
+                 //接收Candidate
+                waitCandidate();
+                
             })();
 
         }
+        
 
+        
+
+
+        //2.打开自已的视频, 把视频的流放在RTCPeer里
+        const getUserMedia = async (callback) => {
+            const hints = {
+                audio: true,
+                video: {
+                    width: 300, height: 200
+                }
+            };
+            const mediaStream = await navigator.mediaDevices.getUserMedia(hints)
+            const video = document.createElement('video');
+            video.classList.add('local');
+            document.getElementById('videoBox').appendChild(video);
+            video.srcObject = mediaStream;
+            video.controls = true;
+            video.muted = true;
+            video.onloadedmetadata = function (event) {
+                video.play();
+            };
+            return mediaStream;
+        }
+        const stream = await getUserMedia();
+        if (stream) {
+            //把视频的流放在RTCPeer里
+            stream.getTracks().forEach(function (track) {
+                RTCPeer.addTrack(track, stream);
+            });
+        }
+
+        //3.创建offer, 发送SDP
+        const offer = await RTCPeer.createOffer()
+        await RTCPeer.setLocalDescription(offer);
+        await axios.post('/offer/sdp/send', offer);
+
+        //4.接收Answer
+        waitAnswer();
+       
         //7.连接成功,通过 RTCPeer.onaddstream 获取到对方的视频 显示
         RTCPeer.onaddstream = function (obj) {
             const video = document.createElement("video");
+            video.classList.add('remote');
             document.getElementById('videoBox').appendChild(video);
             video.controls = true;
             video.muted = true;
@@ -114,74 +198,6 @@
                 video.play();
             };
         }
-
-        RTCPeer.ondatachannel = function (event) {
-            console.log('ondatachannel', event);
-        }
-        //5.获取自已的candidate
-        RTCPeer.onicecandidate = function (event) {
-
-            if (!event.candidate)
-                return;
-            //把candidate输出来好调试
-            console.log("onicecandidate:", event.candidate.type, event.candidate);
-            const message = document.createElement('div');
-            message.innerHTML = `<div class="message">onicecandidate:<span style="color:red">${event.candidate.type}</span>,  ${JSON.stringify(event.candidate)} </div>`;
-            document.body.appendChild(message);
-            //发送candidate
-            axios.post('/offer/candidate/send', event.candidate)
-                .then(function (response) {
-                    console.log(response);
-                })
-                .catch(function (error) {
-                    console.error(error);
-                });
-        }
-
-
-        //2.打开自已的视频, 把视频的流放在RTCPeer里
-        function getUserMedia(callback) {
-            const hints = {
-                audio: true,
-                video: {
-                    width: 300, height: 200
-                }
-            };
-            navigator.mediaDevices.getUserMedia(hints).then(function (mediaStream) {
-                const video = document.createElement('video');
-                document.getElementById('videoBox').appendChild(video);
-                video.srcObject = mediaStream;
-                video.controls = true;
-                video.muted = true;
-                video.onloadedmetadata = function (event) {
-                    video.play();
-                };
-                callback(mediaStream)
-            })
-        }
-        getUserMedia(function (stream) {
-
-            if (stream) {
-                //把视频的流放在RTCPeer里
-                stream.getTracks().forEach(function (track) {
-                    RTCPeer.addTrack(track, stream);
-                });
-            }
-            //3.创建offer,发送SDP
-            RTCPeer.createOffer(async function (offer) {
-                RTCPeer.setLocalDescription(offer, function () {
-                    //发送SDP
-                    axios.post('/offer/sdp/send', offer).then(function (response) {
-                        console.log("/offer/sdp/send", response);
-                        //4.接收Answer
-                        waitAnswer();
-                    }).catch(function (error) {
-                        console.log(error);
-                    });
-                });
-            }, catchError);
-        });
-
     </script>
 
 </body>

@@ -19,6 +19,13 @@ const offerSessionSdp = []
 const answerSessionSdp = []
 const offerCandidate = []
 const answerCandidate = []
+const init = () => {
+  offerSessionSdp.length = 0;
+  
+  offerCandidate.length = 0
+  answerSessionSdp.length = 0
+  answerCandidate.length = 0;
+}
 app.get('/:name',function(req,res,next){
   console.log('/:name')
     var options = {
@@ -58,11 +65,12 @@ app.get('/',function(req,res,next){
       }
     })
 })
-
+app.post('/init',function(req,res,next){
+  init();
+  res.end('{success:1}')
+});
 app.post('/offer/sdp/send',function(req,res,next){
-  offerSessionSdp.push(req.body)
-  offerCandidate.length = 0
-  answerSessionSdp.length = 0
+  offerSessionSdp.push(req.body);
   res.end('{success:1}')
 })
 app.get('/offer/sdp/get',function(req,res,next){
